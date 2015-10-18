@@ -2,11 +2,17 @@ from bottle import route, run, error, static_file
 from bottle import request as req
 import json
 import mockDatabase
+import service
+
+useMock = False
 
 @route('/api/autocomplete')
 def autocomplete():
     hint = req.query.hint.strip()
-    return json.dumps(mockDatabase.getMockData(hint))
+    if useMock:
+        return json.dumps(mockDatabase.getMockData(hint))
+    else:
+        return json.dumps(service.getData(hint))
 
 @route('/')
 def serveHTML():
