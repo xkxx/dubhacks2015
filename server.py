@@ -5,7 +5,7 @@ import mockDatabase
 
 @route('/api/autocomplete')
 def autocomplete():
-    hint = req.query.hint.trim
+    hint = req.query.hint.strip()
     return json.dumps(mockDatabase.getMockData(hint))
 
 @route('/')
