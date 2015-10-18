@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-browserify --outfile static/js/dist.js static/js/app.js
+browserify -t babelify --outfile static/js/dist.js static/js/app.js

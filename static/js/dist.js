@@ -1,16 +1,127 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-var ProseMirror = require("prosemirror/dist/edit").ProseMirror
-require("prosemirror/dist/menu/menubar") // Load menubar module
+"use strict";
 
-var subjectEditor = new ProseMirror({
-  place: document.getElementById("subject"),
+var PM = require("prosemirror/dist/edit");
+var ProseMirror = PM.ProseMirror;
+var Pos = require("prosemirror/dist/model").Pos;
+
+var getLastSent = function getLastSent(str) {
+  // TODO: deal with vs.
+  var stop = str.lastIndexOf(".");
+  return str.slice(stop + 1);
+};
+
+// props: onChange(curSent, pos)
+var ProseMirrorView = React.createClass({
+  displayName: "ProseMirrorView",
+
+  render: function render() {
+    var className = this.props.className;
+    return React.createElement("div", { ref: "mirrorNode", className: className });
+  },
+  componentDidMount: function componentDidMount() {
+    var domNode = this.refs.mirrorNode;
+    var mirror = new ProseMirror({
+      place: domNode
+    });
+    var doc = mirror.doc;
+    var cb = this.props.onChange;
+    if (cb) {
+      var self = this;
+      mirror.on('textInput', function (input) {
+        console.info("text input fired", input);
+        var range = mirror.selection;
+        if (!range.empty) {
+          console.error("inputing while selection is not empty!");
+        }
+        var cursor = range.head;
+        // hack: use selection to read last line
+        var front = Pos.start(doc, cursor); // hack!! FIXME: optimize
+        var cursor_ = new Pos(cursor.path, cursor.offset - 1);
+        var pos = mirror.coordsAtPos(cursor_);
+        mirror.setSelection(front, cursor);
+        var text = mirror.selectedText; // get text
+        var lastSent = getLastSent(text);
+        mirror.setSelection(range); // restore selection
+        cb(lastSent, pos);
+      });
+    }
+    this.mirror = mirror;
+  },
+  shouldComponentUpdate: function shouldComponentUpdate() {
+    return false;
+  }
 });
 
-var bodyEditor = new ProseMirror({
-  place: document.getElementById("body"),
+// props: show, items, pos
+var AutoCompletePopup = React.createClass({
+  displayName: "AutoCompletePopup",
+
+  render: function render() {
+    var show = this.props.show;
+    var pos = this.props.pos;
+    return React.createElement(
+      "div",
+      { className: "popup", style: {
+          visibility: show ? "visible" : "hidden",
+          left: pos.left,
+          top: pos.top
+        } },
+      "OOOOOOOOOOOO"
+    );
+  }
 });
 
-},{"prosemirror/dist/edit":12,"prosemirror/dist/menu/menubar":23}],2:[function(require,module,exports){
+var MainView = React.createClass({
+  displayName: "MainView",
+
+  getInitialState: function getInitialState() {
+    return {
+      showPopup: false,
+      pos: {
+        left: 0, top: 0
+      },
+      items: []
+    };
+  },
+  render: function render() {
+    var self = this;
+    var state = this.state;
+    return React.createElement(
+      "div",
+      { id: "main" },
+      React.createElement(
+        "div",
+        { id: "inputarea" },
+        React.createElement(
+          "span",
+          null,
+          "Subject: "
+        ),
+        React.createElement(ProseMirrorView, { className: "subject" }),
+        React.createElement(
+          "p",
+          null,
+          "Body: "
+        ),
+        React.createElement(ProseMirrorView, { onChange: self.onChange, className: "body" })
+      ),
+      React.createElement(AutoCompletePopup, { show: state.show, pos: state.pos, items: state.items })
+    );
+  },
+  onChange: function onChange(text, pos) {
+    console.info("onChange", text, pos);
+    this.setState({
+      show: true,
+      pos: pos,
+      items: []
+    });
+  }
+});
+
+ReactDOM.render(React.createElement(MainView, null), document.body);
+
+},{"prosemirror/dist/edit":12,"prosemirror/dist/model":22}],2:[function(require,module,exports){
 var inserted = {};
 
 module.exports = function (css, options) {
@@ -470,7 +581,7 @@ function insertOpaqueBlock(pm, type, attrs) {
 commands.insertRule = function (pm) {
   return insertOpaqueBlock(pm, "horizontal_rule");
 };
-},{"../model":26,"../transform":40,"./char":4}],6:[function(require,module,exports){
+},{"../model":22,"../transform":36,"./char":4}],6:[function(require,module,exports){
 "use strict";
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
@@ -690,7 +801,7 @@ function scanText(start, end) {
     cur = cur.firstChild || nodeAfter(cur);
   }
 }
-},{"../model":26,"../parse/dom":33,"../transform/tree":48,"./selection":19}],9:[function(require,module,exports){
+},{"../model":22,"../parse/dom":29,"../transform/tree":44,"./selection":19}],9:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -831,7 +942,7 @@ function redraw(pm, dirty, doc, prev) {
   }
   scan(pm.content, doc, prev);
 }
-},{"../dom":3,"../model":26,"../serialize/dom":36}],10:[function(require,module,exports){
+},{"../dom":3,"../model":22,"../serialize/dom":32}],10:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -1375,7 +1486,7 @@ var History = (function () {
 })();
 
 exports.History = History;
-},{"../model":26,"../transform":40}],12:[function(require,module,exports){
+},{"../model":22,"../transform":36}],12:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -1786,7 +1897,7 @@ handlers.blur = function (pm) {
   (0, _dom.rmClass)(pm.wrapper, "ProseMirror-focused");
   pm.signal("blur");
 };
-},{"../dom":3,"../model":26,"../parse":34,"../parse/dom":33,"../serialize/dom":36,"../serialize/text":38,"./commands":5,"./domchange":8,"./keys":14,"./selection":19}],14:[function(require,module,exports){
+},{"../dom":3,"../model":22,"../parse":30,"../parse/dom":29,"../serialize/dom":32,"../serialize/text":34,"./commands":5,"./domchange":8,"./keys":14,"./selection":19}],14:[function(require,module,exports){
 // From CodeMirror, should be factored into its own NPM module
 
 "use strict";
@@ -2251,7 +2362,7 @@ var Operation = function Operation(pm) {
   this.focus = false;
   this.fullRedraw = !!pm.input.composing;
 };
-},{"../dom":3,"../model":26,"../parse":34,"../parse/text":35,"../serialize":37,"../serialize/text":38,"../transform":40,"./commands":5,"./css":6,"./draw":9,"./event":10,"./history":11,"./input":13,"./options":17,"./range":18,"./selection":19}],16:[function(require,module,exports){
+},{"../dom":3,"../model":22,"../parse":30,"../parse/text":31,"../serialize":33,"../serialize/text":34,"../transform":36,"./commands":5,"./css":6,"./draw":9,"./event":10,"./history":11,"./input":13,"./options":17,"./range":18,"./selection":19}],16:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -2381,7 +2492,7 @@ function setOption(pm, name, value) {
   pm.options[name] = value;
   if (desc.update) desc.update(pm, value, old, false);
 }
-},{"../model":26,"./defaultkeymap":7}],18:[function(require,module,exports){
+},{"../model":22,"./defaultkeymap":7}],18:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -3024,937 +3135,7 @@ function offsetInElement(element, coords) {
     rects.push(child.getBoundingClientRect());
   }return offsetInRects(coords, rects);
 }
-},{"../dom":3,"../model":26}],20:[function(require,module,exports){
-"use strict";
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
-var _insertCss = require("insert-css");
-
-var _insertCss2 = _interopRequireDefault(_insertCss);
-
-(0, _insertCss2["default"])("\n\n.ProseMirror-icon-lift:after {\n  font-family: ProseMirror-icons;\n  content: \"\";\n}\n.ProseMirror-icon-join:after {\n  font-family: ProseMirror-icons;\n  content: \"\";\n}\n.ProseMirror-icon-image:after {\n  font-family: ProseMirror-icons;\n  content: \"\";\n}\n.ProseMirror-icon-strong:after {\n  font-family: ProseMirror-icons;\n  content: \"\";\n}\n.ProseMirror-icon-em:after {\n  font-family: ProseMirror-icons;\n  content: \"\";\n}\n.ProseMirror-icon-link:after {\n  font-family: ProseMirror-icons;\n  content: \"\";\n}\n.ProseMirror-icon-code:after {\n  font-family: ProseMirror-icons;\n  font-size: 110%;\n  content: \"\";\n}\n.ProseMirror-icon-list-ol:after {\n  font-family: ProseMirror-icons;\n  font-size: 110%;\n  content: \"\";\n}\n.ProseMirror-icon-list-ul:after {\n  font-family: ProseMirror-icons;\n  font-size: 110%;\n  content: \"\";\n}\n.ProseMirror-icon-quote:after {\n  font-family: ProseMirror-icons;\n  font-size: 110%;\n  content: \"\";\n}\n.ProseMirror-icon-hr:after {\n  font-family: ProseMirror-icons;\n  content: \"\";\n}\n.ProseMirror-icon-undo:after {\n  font-family: ProseMirror-icons;\n  content: \"\";\n}\n.ProseMirror-icon-redo:after {\n  font-family: ProseMirror-icons;\n  content: \"\";\n}\n\n@font-face {\n  font-family: ProseMirror-icons;\n  src: url(data:application/x-font-woff;base64,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) format('woff');\n  font-weight: normal;\n  font-style: normal;\n}\n\n");
-},{"insert-css":2}],21:[function(require,module,exports){
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; desc = parent = getter = undefined; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; continue _function; } } else if ("value" in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
-
-exports.registerItem = registerItem;
-exports.getItems = getItems;
-exports.forceFontLoad = forceFontLoad;
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
-
-var _model = require("../model");
-
-var _transform = require("../transform");
-
-var _dom = require("../dom");
-
-var _menu = require("./menu");
-
-var _insertCss = require("insert-css");
-
-var _insertCss2 = _interopRequireDefault(_insertCss);
-
-require("./icons");
-
-exports.MenuItem = _menu.MenuItem;
-
-var tags = Object.create(null);
-
-function registerItem(tag, item) {
-  ;(tags[tag] || (tags[tag] = [])).push(item);
-}
-
-function getItems(tag) {
-  return tags[tag] || [];
-}
-
-var IconItem = (function (_MenuItem) {
-  _inherits(IconItem, _MenuItem);
-
-  function IconItem(icon, title) {
-    _classCallCheck(this, IconItem);
-
-    _get(Object.getPrototypeOf(IconItem.prototype), "constructor", this).call(this);
-    this.icon = icon;
-    this.title = title;
-  }
-
-  _createClass(IconItem, [{
-    key: "active",
-    value: function active() {
-      return false;
-    }
-  }, {
-    key: "render",
-    value: function render(menu) {
-      var _this = this;
-
-      var iconClass = "ProseMirror-menuicon";
-      if (this.active(menu.pm)) iconClass += " ProseMirror-menuicon-active";
-      var dom = (0, _dom.elt)("div", { "class": iconClass, title: this.title }, (0, _dom.elt)("span", { "class": "ProseMirror-menuicon ProseMirror-icon-" + this.icon }));
-      dom.addEventListener("mousedown", function (e) {
-        e.preventDefault();e.stopPropagation();
-        menu.run(_this.apply(menu.pm));
-      });
-      return dom;
-    }
-  }]);
-
-  return IconItem;
-})(_menu.MenuItem);
-
-exports.IconItem = IconItem;
-
-var LiftItem = (function (_IconItem) {
-  _inherits(LiftItem, _IconItem);
-
-  function LiftItem() {
-    _classCallCheck(this, LiftItem);
-
-    _get(Object.getPrototypeOf(LiftItem.prototype), "constructor", this).call(this, "lift", "Move out of block");
-  }
-
-  _createClass(LiftItem, [{
-    key: "select",
-    value: function select(pm) {
-      var sel = pm.selection;
-      return (0, _transform.canLift)(pm.doc, sel.from, sel.to);
-    }
-  }, {
-    key: "apply",
-    value: function apply(pm) {
-      var sel = pm.selection;
-      pm.apply(pm.tr.lift(sel.from, sel.to));
-    }
-  }]);
-
-  return LiftItem;
-})(IconItem);
-
-exports.LiftItem = LiftItem;
-
-var JoinItem = (function (_IconItem2) {
-  _inherits(JoinItem, _IconItem2);
-
-  function JoinItem() {
-    _classCallCheck(this, JoinItem);
-
-    _get(Object.getPrototypeOf(JoinItem.prototype), "constructor", this).call(this, "join", "Join with block above");
-  }
-
-  _createClass(JoinItem, [{
-    key: "select",
-    value: function select(pm) {
-      return (0, _transform.joinPoint)(pm.doc, pm.selection.head);
-    }
-  }, {
-    key: "apply",
-    value: function apply(pm) {
-      pm.apply(pm.tr.join((0, _transform.joinPoint)(pm.doc, pm.selection.head)));
-    }
-  }]);
-
-  return JoinItem;
-})(IconItem);
-
-exports.JoinItem = JoinItem;
-
-var InsertBlockItem = (function (_IconItem3) {
-  _inherits(InsertBlockItem, _IconItem3);
-
-  function InsertBlockItem(icon, title, type, attrs) {
-    _classCallCheck(this, InsertBlockItem);
-
-    _get(Object.getPrototypeOf(InsertBlockItem.prototype), "constructor", this).call(this, icon, title);
-    this.type = type;
-    this.attrs = attrs;
-  }
-
-  _createClass(InsertBlockItem, [{
-    key: "select",
-    value: function select(pm) {
-      var sel = pm.selection;
-      return _model.Pos.samePath(sel.head.path, sel.anchor.path) && pm.doc.path(sel.head.path).type.canContain(pm.schema.nodeType(this.type));
-    }
-  }, {
-    key: "apply",
-    value: function apply(pm) {
-      var sel = pm.selection,
-          tr = pm.tr,
-          off = 0;
-      if (sel.head.offset) {
-        tr.split(sel.head);
-        off = 1;
-      }
-      pm.apply(tr.insert(sel.head.shorten(null, off), pm.schema.node(this.type, this.attrs)));
-    }
-  }]);
-
-  return InsertBlockItem;
-})(IconItem);
-
-exports.InsertBlockItem = InsertBlockItem;
-
-var WrapItem = (function (_IconItem4) {
-  _inherits(WrapItem, _IconItem4);
-
-  function WrapItem(icon, title, type) {
-    _classCallCheck(this, WrapItem);
-
-    _get(Object.getPrototypeOf(WrapItem.prototype), "constructor", this).call(this, icon, title);
-    this.type = type;
-  }
-
-  _createClass(WrapItem, [{
-    key: "select",
-    value: function select(pm) {
-      return (0, _transform.canWrap)(pm.doc, pm.selection.from, pm.selection.to, pm.schema.node(this.type));
-    }
-  }, {
-    key: "apply",
-    value: function apply(pm) {
-      var sel = pm.selection;
-      pm.apply(pm.tr.wrap(sel.from, sel.to, pm.schema.node(this.type)));
-    }
-  }]);
-
-  return WrapItem;
-})(IconItem);
-
-exports.WrapItem = WrapItem;
-
-var InlineStyleItem = (function (_IconItem5) {
-  _inherits(InlineStyleItem, _IconItem5);
-
-  function InlineStyleItem(icon, title, style, dialog, attrs) {
-    _classCallCheck(this, InlineStyleItem);
-
-    _get(Object.getPrototypeOf(InlineStyleItem.prototype), "constructor", this).call(this, icon, title);
-    this.style = style;
-    this.attrs = attrs;
-    this.dialog = dialog;
-  }
-
-  _createClass(InlineStyleItem, [{
-    key: "active",
-    value: function active(pm) {
-      var sel = pm.selection;
-      var type = pm.schema.styles[this.style];
-      if (sel.empty) return (0, _model.containsStyle)(pm.activeStyles(), type);else return (0, _model.rangeHasStyle)(pm.doc, sel.from, sel.to, type);
-    }
-  }, {
-    key: "apply",
-    value: function apply(pm) {
-      if (this.active(pm)) pm.setStyle(pm.schema.style(this.style, this.attrs), false);else if (this.dialog) return [this.dialog];else pm.setStyle(pm.schema.style(this.style, this.attrs), true);
-    }
-  }]);
-
-  return InlineStyleItem;
-})(IconItem);
-
-exports.InlineStyleItem = InlineStyleItem;
-
-var ImageItem = (function (_IconItem6) {
-  _inherits(ImageItem, _IconItem6);
-
-  function ImageItem() {
-    _classCallCheck(this, ImageItem);
-
-    _get(Object.getPrototypeOf(ImageItem.prototype), "constructor", this).call(this, "image", "Insert image");
-  }
-
-  _createClass(ImageItem, [{
-    key: "apply",
-    value: function apply() {
-      return [imageDialog];
-    }
-  }]);
-
-  return ImageItem;
-})(IconItem);
-
-exports.ImageItem = ImageItem;
-
-var DialogItem = (function (_MenuItem2) {
-  _inherits(DialogItem, _MenuItem2);
-
-  function DialogItem() {
-    _classCallCheck(this, DialogItem);
-
-    _get(Object.getPrototypeOf(DialogItem.prototype), "constructor", this).apply(this, arguments);
-  }
-
-  _createClass(DialogItem, [{
-    key: "focus",
-    value: function focus(form) {
-      var input = form.querySelector("input, textarea");
-      if (input) input.focus();
-    }
-  }, {
-    key: "render",
-    value: function render(menu) {
-      var _this2 = this;
-
-      var form = this.form(menu.pm),
-          done = false;
-
-      var finish = function finish() {
-        if (!done) {
-          done = true;
-          menu.pm.focus();
-        }
-      };
-
-      var submit = function submit() {
-        var result = _this2.apply(form, menu.pm);
-        finish();
-        menu.run(result);
-      };
-      form.addEventListener("submit", function (e) {
-        e.preventDefault();
-        submit();
-      });
-      form.addEventListener("keydown", function (e) {
-        if (e.keyCode == 27) {
-          finish();
-          menu.leave();
-        } else if (e.keyCode == 13 && !(e.ctrlKey || e.metaKey || e.shiftKey)) {
-          e.preventDefault();
-          submit();
-        }
-      });
-      // FIXME too hacky?
-      setTimeout(function () {
-        return _this2.focus(form);
-      }, 20);
-      return form;
-    }
-  }]);
-
-  return DialogItem;
-})(_menu.MenuItem);
-
-exports.DialogItem = DialogItem;
-
-var LinkDialog = (function (_DialogItem) {
-  _inherits(LinkDialog, _DialogItem);
-
-  function LinkDialog() {
-    _classCallCheck(this, LinkDialog);
-
-    _get(Object.getPrototypeOf(LinkDialog.prototype), "constructor", this).apply(this, arguments);
-  }
-
-  _createClass(LinkDialog, [{
-    key: "form",
-    value: function form() {
-      return (0, _dom.elt)("form", null, (0, _dom.elt)("div", null, (0, _dom.elt)("input", { name: "href", type: "text", placeholder: "Target URL",
-        size: 40, autocomplete: "off" })), (0, _dom.elt)("div", null, (0, _dom.elt)("input", { name: "title", type: "text", placeholder: "Title",
-        size: 40, autocomplete: "off" })));
-    }
-  }, {
-    key: "apply",
-    value: function apply(form, pm) {
-      var elts = form.elements;
-      if (!elts.href.value) return;
-      var sel = pm.selection;
-      pm.apply(pm.tr.addStyle(sel.from, sel.to, pm.schema.style("link", { href: elts.href.value,
-        title: elts.title.value })));
-    }
-  }]);
-
-  return LinkDialog;
-})(DialogItem);
-
-exports.LinkDialog = LinkDialog;
-
-var linkDialog = new LinkDialog();
-
-var ImageDialog = (function (_DialogItem2) {
-  _inherits(ImageDialog, _DialogItem2);
-
-  function ImageDialog() {
-    _classCallCheck(this, ImageDialog);
-
-    _get(Object.getPrototypeOf(ImageDialog.prototype), "constructor", this).apply(this, arguments);
-  }
-
-  _createClass(ImageDialog, [{
-    key: "form",
-    value: function form(pm) {
-      var alt = pm.selectedText;
-      return (0, _dom.elt)("form", null, (0, _dom.elt)("div", null, (0, _dom.elt)("input", { name: "src", type: "text", placeholder: "Image URL",
-        size: 40, autocomplete: "off" })), (0, _dom.elt)("div", null, (0, _dom.elt)("input", { name: "alt", type: "text", value: alt, autocomplete: "off",
-        placeholder: "Description / alternative text", size: 40 })), (0, _dom.elt)("div", null, (0, _dom.elt)("input", { name: "title", type: "text", placeholder: "Title",
-        size: 40, autcomplete: "off" })));
-    }
-  }, {
-    key: "apply",
-    value: function apply(form, pm) {
-      var elts = form.elements;
-      if (!elts.src.value) return;
-      var sel = pm.selection,
-          tr = pm.tr;
-      tr["delete"](sel.from, sel.to);
-      var attrs = { src: elts.src.value, alt: elts.alt.value, title: elts.title.value };
-      pm.apply(tr.insertInline(sel.from, pm.schema.node("image", attrs)));
-    }
-  }]);
-
-  return ImageDialog;
-})(DialogItem);
-
-exports.ImageDialog = ImageDialog;
-
-var imageDialog = new ImageDialog();
-
-var SeparatorItem = (function (_MenuItem3) {
-  _inherits(SeparatorItem, _MenuItem3);
-
-  function SeparatorItem() {
-    _classCallCheck(this, SeparatorItem);
-
-    _get(Object.getPrototypeOf(SeparatorItem.prototype), "constructor", this).apply(this, arguments);
-  }
-
-  _createClass(SeparatorItem, [{
-    key: "render",
-    value: function render() {
-      return (0, _dom.elt)("div", { "class": "ProseMirror-menuseparator" });
-    }
-  }]);
-
-  return SeparatorItem;
-})(_menu.MenuItem);
-
-var separatorItem = new SeparatorItem();
-
-exports.separatorItem = separatorItem;
-
-var UndoItem = (function (_IconItem7) {
-  _inherits(UndoItem, _IconItem7);
-
-  function UndoItem() {
-    _classCallCheck(this, UndoItem);
-
-    _get(Object.getPrototypeOf(UndoItem.prototype), "constructor", this).call(this, "undo", "Undo");
-  }
-
-  _createClass(UndoItem, [{
-    key: "select",
-    value: function select(pm) {
-      return pm.history.canUndo();
-    }
-  }, {
-    key: "apply",
-    value: function apply(pm) {
-      pm.history.undo();
-    }
-  }]);
-
-  return UndoItem;
-})(IconItem);
-
-var RedoItem = (function (_IconItem8) {
-  _inherits(RedoItem, _IconItem8);
-
-  function RedoItem() {
-    _classCallCheck(this, RedoItem);
-
-    _get(Object.getPrototypeOf(RedoItem.prototype), "constructor", this).call(this, "redo", "Redo");
-  }
-
-  _createClass(RedoItem, [{
-    key: "select",
-    value: function select(pm) {
-      return pm.history.canRedo();
-    }
-  }, {
-    key: "apply",
-    value: function apply(pm) {
-      pm.history.redo();
-    }
-  }]);
-
-  return RedoItem;
-})(IconItem);
-
-var HistorySeparator = (function (_SeparatorItem) {
-  _inherits(HistorySeparator, _SeparatorItem);
-
-  function HistorySeparator() {
-    _classCallCheck(this, HistorySeparator);
-
-    _get(Object.getPrototypeOf(HistorySeparator.prototype), "constructor", this).apply(this, arguments);
-  }
-
-  // FIXME make schema-aware
-
-  _createClass(HistorySeparator, [{
-    key: "select",
-    value: function select(pm) {
-      return pm.history.canUndo() || pm.history.canRedo();
-    }
-  }]);
-
-  return HistorySeparator;
-})(SeparatorItem);
-
-var blockTypes = [{ name: "Normal", type: "paragraph" }, { name: "Code", type: "code_block" }];
-for (var i = 1; i <= 6; i++) {
-  blockTypes.push({ name: "Head " + i, type: "heading", attrs: { level: i } });
-}function getBlockType(block) {
-  for (var i = 0; i < blockTypes.length; i++) {
-    if (blockTypes[i].type == block.type.name && (block.type.attrs.level == null || block.type.attrs.level == blockTypes[i].attrs.level)) return blockTypes[i];
-  }
-}
-
-var BlockTypeItem = (function (_MenuItem4) {
-  _inherits(BlockTypeItem, _MenuItem4);
-
-  function BlockTypeItem() {
-    _classCallCheck(this, BlockTypeItem);
-
-    _get(Object.getPrototypeOf(BlockTypeItem.prototype), "constructor", this).apply(this, arguments);
-  }
-
-  _createClass(BlockTypeItem, [{
-    key: "render",
-    value: function render(menu) {
-      var sel = menu.pm.selection,
-          type = undefined;
-      if (_model.Pos.samePath(sel.head.path, sel.anchor.path)) type = getBlockType(menu.pm.doc.path(sel.head.path));
-      var dom = (0, _dom.elt)("div", { "class": "ProseMirror-blocktype", title: "Paragraph type" }, type ? type.name : "Type...");
-      dom.addEventListener("mousedown", function (e) {
-        e.preventDefault();e.stopPropagation();
-        showBlockTypeMenu(menu.pm, dom);
-      });
-      return dom;
-    }
-  }]);
-
-  return BlockTypeItem;
-})(_menu.MenuItem);
-
-function showBlockTypeMenu(pm, dom) {
-  var menu = (0, _dom.elt)("div", { "class": "ProseMirror-blocktype-menu" }, blockTypes.map(function (t) {
-    var dom = (0, _dom.elt)("div", null, t.name);
-    dom.addEventListener("mousedown", function (e) {
-      e.preventDefault();
-      var sel = pm.selection;
-      pm.apply(pm.tr.setBlockType(sel.from, sel.to, pm.schema.node(t.type, t.attrs)));
-      finish();
-    });
-    return dom;
-  }));
-  var pos = dom.getBoundingClientRect(),
-      box = pm.wrapper.getBoundingClientRect();
-  menu.style.left = pos.left - box.left - 2 + "px";
-  menu.style.top = pos.top - box.top - 2 + "px";
-
-  var done = false;
-  function finish() {
-    if (done) return;
-    done = true;
-    document.body.removeEventListener("mousedown", finish);
-    document.body.removeEventListener("keydown", finish);
-    pm.wrapper.removeChild(menu);
-  }
-  document.body.addEventListener("mousedown", finish);
-  document.body.addEventListener("keydown", finish);
-  pm.wrapper.appendChild(menu);
-}
-
-registerItem("inline", new InlineStyleItem("strong", "Strong text", "strong"));
-registerItem("inline", new InlineStyleItem("em", "Emphasized text", "em"));
-registerItem("inline", new InlineStyleItem("link", "Hyperlink", "link", linkDialog));
-registerItem("inline", new InlineStyleItem("code", "Code font", "code"));
-registerItem("inline", new ImageItem("image"));
-
-registerItem("block", new BlockTypeItem());
-registerItem("block", new LiftItem());
-registerItem("block", new WrapItem("list-ol", "Wrap in ordered list", "ordered_list"));
-registerItem("block", new WrapItem("list-ul", "Wrap in bullet list", "bullet_list"));
-registerItem("block", new WrapItem("quote", "Wrap in blockquote", "blockquote"));
-registerItem("block", new InsertBlockItem("hr", "Insert horizontal rule", "horizontal_rule"));
-registerItem("block", new JoinItem());
-
-registerItem("history", new HistorySeparator());
-registerItem("history", new UndoItem());
-registerItem("history", new RedoItem());
-
-// Awkward hack to force Chrome to initialize the font and not return
-// incorrect size information the first time it is used.
-
-var forced = false;
-
-function forceFontLoad(pm) {
-  if (forced) return;
-  forced = true;
-
-  var node = pm.wrapper.appendChild((0, _dom.elt)("div", { "class": "ProseMirror-menuicon ProseMirror-icon-strong",
-    style: "visibility: hidden; position: absolute" }));
-  window.setTimeout(function () {
-    return pm.wrapper.removeChild(node);
-  }, 20);
-}
-
-(0, _insertCss2["default"])("\n\n.ProseMirror-menuicon {\n  display: inline-block;\n  padding: 1px 4px;\n  margin: 0 2px;\n  cursor: pointer;\n  text-rendering: auto;\n  -webkit-font-smoothing: antialiased;\n  -moz-osx-font-smoothing: grayscale;\n  text-align: center;\n  vertical-align: middle;\n}\n\n.ProseMirror-menuicon-active {\n  background: #666;\n  border-radius: 4px;\n}\n\n.ProseMirror-menuseparator {\n  display: inline-block;\n}\n.ProseMirror-menuseparator:after {\n  content: \"︙\";\n  opacity: 0.5;\n  padding: 0 4px;\n  vertical-align: middle;\n}\n\n.ProseMirror-blocktype, .ProseMirror-blocktype-menu {\n  border: 1px solid #777;\n  border-radius: 3px;\n  font-size: 90%;\n}\n\n.ProseMirror-blocktype {\n  padding: 1px 2px 1px 4px;\n  display: inline-block;\n  vertical-align: middle;\n  cursor: pointer;\n  margin: 0 4px;\n}\n\n.ProseMirror-blocktype:after {\n  content: \" ▿\";\n  color: #777;\n  vertical-align: top;\n}\n\n.ProseMirror-blocktype-menu {\n  position: absolute;\n  background: #444;\n  color: white;\n  padding: 2px 2px;\n  z-index: 5;\n}\n.ProseMirror-blocktype-menu div {\n  cursor: pointer;\n  padding: 0 1em 0 2px;\n}\n.ProseMirror-blocktype-menu div:hover {\n  background: #777;\n}\n\n");
-},{"../dom":3,"../model":26,"../transform":40,"./icons":20,"./menu":22,"insert-css":2}],22:[function(require,module,exports){
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-var _dom = require("../dom");
-
-var _insertCss = require("insert-css");
-
-var _insertCss2 = _interopRequireDefault(_insertCss);
-
-var Menu = (function () {
-  function Menu(pm, display) {
-    _classCallCheck(this, Menu);
-
-    this.display = display;
-    this.stack = [];
-    this.pm = pm;
-  }
-
-  _createClass(Menu, [{
-    key: "show",
-    value: function show(content, displayInfo) {
-      this.stack.length = 0;
-      this.enter(content, displayInfo);
-    }
-  }, {
-    key: "reset",
-    value: function reset() {
-      this.stack.length = 0;
-      this.display.reset();
-    }
-  }, {
-    key: "enter",
-    value: function enter(content, displayInfo) {
-      var _this = this;
-
-      var selected = content.filter(function (i) {
-        return i.select(_this.pm);
-      });
-      if (!selected.length) return this.display.clear();
-
-      this.stack.push(selected);
-      this.draw(displayInfo);
-    }
-  }, {
-    key: "draw",
-    value: function draw(displayInfo) {
-      var _this2 = this;
-
-      var cur = this.stack[this.stack.length - 1];
-      var rendered = (0, _dom.elt)("div", { "class": "ProseMirror-menu" }, cur.map(function (item) {
-        return item.render(_this2);
-      }));
-      if (this.stack.length > 1) this.display.enter(rendered, function () {
-        return _this2.leave();
-      }, displayInfo);else this.display.show(rendered, displayInfo);
-    }
-  }, {
-    key: "run",
-    value: function run(content) {
-      if (!content) return this.reset();else this.enter(content);
-    }
-  }, {
-    key: "leave",
-    value: function leave() {
-      this.stack.pop();
-      if (this.stack.length) this.draw();else this.display.reset();
-    }
-  }, {
-    key: "active",
-    get: function get() {
-      return this.stack.length > 1;
-    }
-  }]);
-
-  return Menu;
-})();
-
-exports.Menu = Menu;
-
-var TooltipDisplay = (function () {
-  function TooltipDisplay(tooltip, resetFunc) {
-    _classCallCheck(this, TooltipDisplay);
-
-    this.tooltip = tooltip;
-    this.resetFunc = resetFunc;
-  }
-
-  _createClass(TooltipDisplay, [{
-    key: "clear",
-    value: function clear() {
-      this.tooltip.close();
-    }
-  }, {
-    key: "reset",
-    value: function reset() {
-      if (this.resetFunc) this.resetFunc();else this.clear();
-    }
-  }, {
-    key: "show",
-    value: function show(dom, info) {
-      this.tooltip.open(dom, info);
-    }
-  }, {
-    key: "enter",
-    value: function enter(dom, back, info) {
-      var button = (0, _dom.elt)("div", { "class": "ProseMirror-tooltip-back", title: "Back" });
-      button.addEventListener("mousedown", function (e) {
-        e.preventDefault();e.stopPropagation();
-        back();
-      });
-      this.show((0, _dom.elt)("div", { "class": "ProseMirror-tooltip-back-wrapper" }, dom, button), info);
-    }
-  }]);
-
-  return TooltipDisplay;
-})();
-
-exports.TooltipDisplay = TooltipDisplay;
-
-var MenuItem = (function () {
-  function MenuItem() {
-    _classCallCheck(this, MenuItem);
-  }
-
-  _createClass(MenuItem, [{
-    key: "select",
-    value: function select() {
-      return true;
-    }
-  }, {
-    key: "render",
-    value: function render() {
-      throw new Error("You have to implement this");
-    }
-  }]);
-
-  return MenuItem;
-})();
-
-exports.MenuItem = MenuItem;
-
-(0, _insertCss2["default"])("\n\n.ProseMirror-menu {\n  margin: 0 -4px;\n  line-height: 1;\n  white-space: pre;\n  width: -webkit-fit-content;\n  width: fit-content;\n}\n\n.ProseMirror-tooltip-back-wrapper {\n  padding-left: 12px;\n}\n.ProseMirror-tooltip-back {\n  position: absolute;\n  top: 5px; left: 5px;\n  cursor: pointer;\n}\n.ProseMirror-tooltip-back:after {\n  content: \"«\";\n}\n\n");
-},{"../dom":3,"insert-css":2}],23:[function(require,module,exports){
-"use strict";
-
-var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-
-function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) arr2[i] = arr[i]; return arr2; } else { return Array.from(arr); } }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-var _edit = require("../edit");
-
-var _dom = require("../dom");
-
-var _utilDebounce = require("../util/debounce");
-
-var _menu = require("./menu");
-
-var _items = require("./items");
-
-var _insertCss = require("insert-css");
-
-var _insertCss2 = _interopRequireDefault(_insertCss);
-
-require("./icons");
-
-(0, _edit.defineOption)("menuBar", false, function (pm, value) {
-  if (pm.mod.menuBar) pm.mod.menuBar.detach();
-  pm.mod.menuBar = value ? new MenuBar(pm, value) : null;
-});
-
-var BarDisplay = (function () {
-  function BarDisplay(container, resetFunc) {
-    _classCallCheck(this, BarDisplay);
-
-    this.container = container;
-    this.resetFunc = resetFunc;
-  }
-
-  _createClass(BarDisplay, [{
-    key: "clear",
-    value: function clear() {
-      this.container.textContent = "";
-    }
-  }, {
-    key: "reset",
-    value: function reset() {
-      this.resetFunc();
-    }
-  }, {
-    key: "show",
-    value: function show(dom) {
-      this.clear();
-      this.container.appendChild(dom);
-    }
-  }, {
-    key: "enter",
-    value: function enter(dom, back) {
-      var current = this.container.firstChild;
-      if (current) {
-        current.style.position = "absolute";
-        current.style.opacity = "0.5";
-      }
-      var backButton = (0, _dom.elt)("div", { "class": "ProseMirror-menubar-back" });
-      backButton.addEventListener("mousedown", function (e) {
-        e.preventDefault();e.stopPropagation();
-        back();
-      });
-      var added = (0, _dom.elt)("div", { "class": "ProseMirror-menubar-sliding" }, backButton, dom);
-      this.container.appendChild(added);
-      added.getBoundingClientRect(); // Force layout for transition
-      added.style.left = "0";
-      added.addEventListener("transitionend", function () {
-        if (current && current.parentNode) current.parentNode.removeChild(current);
-      });
-    }
-  }]);
-
-  return BarDisplay;
-})();
-
-var MenuBar = (function () {
-  function MenuBar(pm, config) {
-    var _this = this;
-
-    _classCallCheck(this, MenuBar);
-
-    this.pm = pm;
-
-    this.menuElt = (0, _dom.elt)("div", { "class": "ProseMirror-menubar-inner" });
-    this.wrapper = (0, _dom.elt)("div", { "class": "ProseMirror-menubar" },
-    // Height-forcing placeholder
-    (0, _dom.elt)("div", { "class": "ProseMirror-menu", style: "visibility: hidden" }, (0, _dom.elt)("div", { "class": "ProseMirror-menuicon" }, (0, _dom.elt)("span", { "class": "ProseMirror-menuicon ProseMirror-icon-strong" }))), this.menuElt);
-    pm.wrapper.insertBefore(this.wrapper, pm.wrapper.firstChild);
-
-    this.menu = new _menu.Menu(pm, new BarDisplay(this.menuElt, function () {
-      return _this.resetMenu();
-    }));
-    this.debounced = new _utilDebounce.Debounced(pm, 100, function () {
-      return _this.update();
-    });
-    pm.on("selectionChange", this.updateFunc = function () {
-      return _this.debounced.trigger();
-    });
-    pm.on("change", this.updateFunc);
-    pm.on("activeStyleChange", this.updateFunc);
-
-    this.menuItems = config && config.items || [].concat(_toConsumableArray((0, _items.getItems)("inline")), [_items.separatorItem], _toConsumableArray((0, _items.getItems)("block")), _toConsumableArray((0, _items.getItems)("history")));
-    this.update();
-
-    this.floating = false;
-    if (config && config.float) {
-      this.updateFloat();
-      this.scrollFunc = function () {
-        if (!document.body.contains(_this.pm.wrapper)) window.removeEventListener("scroll", _this.scrollFunc);else _this.updateFloat();
-      };
-      window.addEventListener("scroll", this.scrollFunc);
-    }
-  }
-
-  _createClass(MenuBar, [{
-    key: "detach",
-    value: function detach() {
-      this.debounced.clear();
-      this.wrapper.parentNode.removeChild(this.wrapper);
-
-      this.pm.off("selectionChange", this.updateFunc);
-      this.pm.off("change", this.updateFunc);
-      this.pm.off("activeStyleChange", this.updateFunc);
-      if (this.scrollFunc) window.removeEventListener("scroll", this.scrollFunc);
-    }
-  }, {
-    key: "update",
-    value: function update() {
-      if (!this.menu.active) this.resetMenu();
-      if (this.floating) this.scrollCursorIfNeeded();
-    }
-  }, {
-    key: "resetMenu",
-    value: function resetMenu() {
-      this.menu.show(this.menuItems);
-    }
-  }, {
-    key: "updateFloat",
-    value: function updateFloat() {
-      var editorRect = this.pm.wrapper.getBoundingClientRect();
-      if (this.floating) {
-        if (editorRect.top >= 0 || editorRect.bottom < this.menuElt.offsetHeight + 10) {
-          this.floating = false;
-          this.menuElt.style.position = this.menuElt.style.left = this.menuElt.style.width = "";
-          this.menuElt.style.display = "";
-        } else {
-          var border = (this.pm.wrapper.offsetWidth - this.pm.wrapper.clientWidth) / 2;
-          this.menuElt.style.left = editorRect.left + border + "px";
-          this.menuElt.style.display = editorRect.top > window.innerHeight ? "none" : "";
-        }
-      } else {
-        if (editorRect.top < 0 && editorRect.bottom >= this.menuElt.offsetHeight + 10) {
-          this.floating = true;
-          var menuRect = this.menuElt.getBoundingClientRect();
-          this.menuElt.style.left = menuRect.left + "px";
-          this.menuElt.style.width = menuRect.length + "px";
-          this.menuElt.style.position = "fixed";
-        }
-      }
-    }
-  }, {
-    key: "scrollCursorIfNeeded",
-    value: function scrollCursorIfNeeded() {
-      var cursorPos = this.pm.coordsAtPos(this.pm.selection.head);
-      var menuRect = this.menuElt.getBoundingClientRect();
-      if (cursorPos.top < menuRect.bottom && cursorPos.bottom > menuRect.top) {
-        var scrollable = findWrappingScrollable(this.pm.wrapper);
-        if (scrollable) scrollable.scrollTop -= menuRect.bottom - cursorPos.top;
-      }
-    }
-  }]);
-
-  return MenuBar;
-})();
-
-function findWrappingScrollable(node) {
-  for (var cur = node.parentNode; cur; cur = cur.parentNode) {
-    if (cur.scrollHeight > cur.clientHeight) return cur;
-  }
-}
-
-(0, _insertCss2["default"])("\n.ProseMirror-menubar {\n  padding: 1px 4px;\n  position: relative;\n  margin-bottom: 3px;\n  border-top-left-radius: inherit;\n  border-top-right-radius: inherit;\n}\n\n.ProseMirror-menubar-inner {\n  color: #666;\n  padding: 1px 4px;\n  top: 0; left: 0; right: 0;\n  position: absolute;\n  border-bottom: 1px solid silver;\n  background: white;\n  -moz-box-sizing: border-box;\n  box-sizing: border-box;\n  overflow: hidden;\n  border-top-left-radius: inherit;\n  border-top-right-radius: inherit;\n}\n\n.ProseMirror-menubar .ProseMirror-menuicon-active {\n  background: #eee;\n}\n\n.ProseMirror-menubar input[type=\"text\"],\n.ProseMirror-menubar textarea {\n  background: #eee;\n  color: black;\n  border: none;\n  outline: none;\n  margin: 2px;\n}\n\n.ProseMirror-menubar input[type=\"text\"] {\n  padding: 0 4px;\n}\n\n.ProseMirror-menubar .ProseMirror-blocktype {\n  border: 1px solid #ccc;\n  min-width: 4em;\n}\n.ProseMirror-menubar .ProseMirror-blocktype:after {\n  color: #ccc;\n}\n\n.ProseMirror-menubar-sliding {\n  -webkit-transition: left 0.2s ease-out;\n  -moz-transition: left 0.2s ease-out;\n  transition: left 0.2s ease-out;\n  position: relative;\n  left: 100%;\n  width: 100%;\n  padding-left: 16px;\n  background: white;\n}\n\n.ProseMirror-menubar-back {\n  position: absolute;\n  height: 100%;\n  margin-top: -1px;\n  padding-bottom: 2px;\n  width: 10px;\n  left: 0;\n  border-right: 1px solid silver;\n  cursor: pointer;\n}\n.ProseMirror-menubar-back:after {\n  content: \"«\";\n}\n\n");
-},{"../dom":3,"../edit":12,"../util/debounce":49,"./icons":20,"./items":21,"./menu":22,"insert-css":2}],24:[function(require,module,exports){
+},{"../dom":3,"../model":22}],20:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -4285,7 +3466,7 @@ var defaultSpec = new _schema.SchemaSpec({
 
 var defaultSchema = new _schema.Schema(defaultSpec);
 exports.defaultSchema = defaultSchema;
-},{"./schema":30}],25:[function(require,module,exports){
+},{"./schema":26}],21:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -4378,7 +3559,7 @@ function findDiffEnd(a, b) {
   return { a: new _pos.Pos(pathA, a.maxOffset - offset),
     b: new _pos.Pos(pathB, b.maxOffset - offset) };
 }
-},{"./pos":29,"./style":32}],26:[function(require,module,exports){
+},{"./pos":25,"./style":28}],22:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -4648,7 +3829,7 @@ Object.defineProperty(exports, "findDiffEnd", {
                 return _diff.findDiffEnd;
         }
 });
-},{"./defaultschema":24,"./diff":25,"./inline":27,"./node":28,"./pos":29,"./schema":30,"./slice":31,"./style":32}],27:[function(require,module,exports){
+},{"./defaultschema":20,"./diff":21,"./inline":23,"./node":24,"./pos":25,"./schema":26,"./slice":27,"./style":28}],23:[function(require,module,exports){
 // Primitive operations on inline content
 
 "use strict";
@@ -4743,7 +3924,7 @@ function rangeHasStyle(doc, from, to, type) {
   }
   return scan(doc, from, to, type, 0);
 }
-},{"./style":32}],28:[function(require,module,exports){
+},{"./style":28}],24:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -5166,7 +4347,7 @@ function compareMarkup(typeA, typeB, attrsA, attrsB) {
   for (var prop in attrsA) if (attrsB[prop] !== attrsA[prop]) return false;
   return true;
 }
-},{"./style":32}],29:[function(require,module,exports){
+},{"./style":28}],25:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -5340,7 +4521,7 @@ function findBefore(node, pos, path) {
     path.pop();
   }
 }
-},{}],30:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -5830,7 +5011,7 @@ var Schema = (function () {
 })();
 
 exports.Schema = Schema;
-},{"../util/error":50,"./node":28,"./style":32}],31:[function(require,module,exports){
+},{"../util/error":45,"./node":24,"./style":28}],27:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -5902,7 +5083,7 @@ function sliceBetween(node, from, to) {
     return node.copy(content);
   }
 }
-},{}],32:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -5993,7 +5174,7 @@ function containsStyle(set, type) {
     if (set[i].type == type) return set[i];
   }return false;
 }
-},{}],33:[function(require,module,exports){
+},{}],29:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -6279,7 +5460,7 @@ _model.StrongStyle.register("parseDOM", { tag: "b", parse: inline });
 _model.StrongStyle.register("parseDOM", { tag: "strong", parse: inline });
 
 _model.CodeStyle.register("parseDOM", { tag: "code", parse: inline });
-},{"../model":26,"./index":34}],34:[function(require,module,exports){
+},{"../model":22,"./index":30}],30:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -6307,7 +5488,7 @@ function defineSource(format, func) {
 defineSource("json", function (schema, json) {
   return schema.nodeFromJSON(json);
 });
-},{}],35:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -6337,7 +5518,7 @@ function fromText(schema, text) {
 }
 
 (0, _index.defineSource)("text", fromText);
-},{"./index":34}],36:[function(require,module,exports){
+},{"./index":30}],32:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -6540,7 +5721,7 @@ def(_model.LinkStyle, function (style) {
   if (style.attrs.title) dom.setAttribute("title", style.attrs.title);
   return dom;
 });
-},{"../model":26,"./index":37}],37:[function(require,module,exports){
+},{"../model":22,"./index":33}],33:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -6568,7 +5749,7 @@ function defineTarget(format, func) {
 defineTarget("json", function (doc) {
   return doc.toJSON();
 });
-},{}],38:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -6611,7 +5792,7 @@ function toText(doc) {
 }
 
 (0, _index.defineTarget)("text", toText);
-},{"../model":26,"./index":37}],39:[function(require,module,exports){
+},{"../model":22,"./index":33}],35:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -6824,7 +6005,7 @@ _transform.Transform.prototype.setBlockType = function (from, to, wrapNode) {
   });
   return this;
 };
-},{"../model":26,"./map":42,"./step":45,"./transform":47,"./tree":48}],40:[function(require,module,exports){
+},{"../model":22,"./map":38,"./step":41,"./transform":43,"./tree":44}],36:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -6911,7 +6092,7 @@ Object.defineProperty(exports, "Remapping", {
     return _map.Remapping;
   }
 });
-},{"./ancestor":39,"./join":41,"./map":42,"./replace":43,"./split":44,"./step":45,"./style":46,"./transform":47}],41:[function(require,module,exports){
+},{"./ancestor":35,"./join":37,"./map":38,"./replace":39,"./split":40,"./step":41,"./style":42,"./transform":43}],37:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -6972,7 +6153,7 @@ _transform.Transform.prototype.join = function (at) {
   this.step("join", new _model.Pos(at.path.concat(at.offset - 1), parent.child(at.offset - 1).maxOffset), new _model.Pos(at.path.concat(at.offset), 0));
   return this;
 };
-},{"../model":26,"./map":42,"./step":45,"./transform":47}],42:[function(require,module,exports){
+},{"../model":22,"./map":38,"./step":41,"./transform":43}],38:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -7278,7 +6459,7 @@ function mapStep(step, remapping) {
   }
   if (!allDeleted) return new _step.Step(step.name, from, to, pos, step.param);
 }
-},{"../model":26,"./step":45}],43:[function(require,module,exports){
+},{"../model":22,"./step":41}],39:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -7544,7 +6725,7 @@ _transform.Transform.prototype.insertInline = function (pos, nodes) {
 _transform.Transform.prototype.insertText = function (pos, text) {
   return this.insertInline(pos, this.doc.type.schema.text(text));
 };
-},{"../model":26,"./map":42,"./step":45,"./transform":47,"./tree":48}],44:[function(require,module,exports){
+},{"../model":22,"./map":38,"./step":41,"./transform":43,"./tree":44}],40:[function(require,module,exports){
 "use strict";
 
 var _model = require("../model");
@@ -7598,7 +6779,7 @@ _transform.Transform.prototype.split = function (pos) {
     pos = pos.shorten(null, 1);
   }
 };
-},{"../model":26,"./map":42,"./step":45,"./transform":47}],45:[function(require,module,exports){
+},{"../model":22,"./map":38,"./step":41,"./transform":43}],41:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -7667,7 +6848,7 @@ var steps = Object.create(null);
 function defineStep(name, impl) {
   steps[name] = impl;
 }
-},{"../model":26}],46:[function(require,module,exports){
+},{"../model":22}],42:[function(require,module,exports){
 "use strict";
 
 var _model = require("../model");
@@ -7804,7 +6985,7 @@ _transform.Transform.prototype.clearMarkup = function (from, to) {
   });
   return this;
 };
-},{"../model":26,"./step":45,"./transform":47,"./tree":48}],47:[function(require,module,exports){
+},{"../model":22,"./step":41,"./transform":43,"./tree":44}],43:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -7878,7 +7059,7 @@ var Transform = (function () {
 })();
 
 exports.Transform = Transform;
-},{"./map":42,"./step":45}],48:[function(require,module,exports){
+},{"./map":38,"./step":41}],44:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -8047,63 +7228,7 @@ function samePathDepth(a, b) {
     if (i == a.path.length || i == b.path.length || a.path[i] != b.path[i]) return i;
   }
 }
-},{}],49:[function(require,module,exports){
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-var Debounced = (function () {
-  function Debounced(pm, delay, f) {
-    _classCallCheck(this, Debounced);
-
-    this.pm = pm;
-    this.delay = delay;
-    this.scheduled = null;
-    this.f = f;
-    this.pending = null;
-  }
-
-  _createClass(Debounced, [{
-    key: "trigger",
-    value: function trigger() {
-      var _this = this;
-
-      window.clearTimeout(this.scheduled);
-      this.scheduled = window.setTimeout(function () {
-        return _this.fire();
-      }, this.delay);
-    }
-  }, {
-    key: "fire",
-    value: function fire() {
-      var _this2 = this;
-
-      if (!this.pending) {
-        if (this.pm.operation) this.pm.on("flush", this.pending = function () {
-          _this2.pm.off("flush", _this2.pending);
-          _this2.pending = null;
-          _this2.f();
-        });else this.f();
-      }
-    }
-  }, {
-    key: "clear",
-    value: function clear() {
-      window.clearTimeout(this.scheduled);
-    }
-  }]);
-
-  return Debounced;
-})();
-
-exports.Debounced = Debounced;
-},{}],50:[function(require,module,exports){
+},{}],45:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
