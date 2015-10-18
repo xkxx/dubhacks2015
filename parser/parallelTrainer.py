@@ -84,10 +84,6 @@ def trainModel():
         threads.append(t)
         t.start()
 
-def userCustomize(hint, options):
-    redis_ho = redis.Redis(connection_pool=pool_ho)
-    redis_ho.zincrby(hint, options, 3)
-
 if (sys.argv[1] == 'build'):
     buildNGram()
 
