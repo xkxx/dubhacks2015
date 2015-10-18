@@ -20,7 +20,7 @@ def getData(input):
                     userCustomize.userCustomize(wordList[index - 1], curr)
                 if r.exists(curr) >= 1:
                     allword.extend(getPossibleList(curr), index)
-                    allword.extend(getPossibleList(curr.lower()), index)
+                    allword.extend(getPossibleList(curr.lower(), index))
                     #result = r.zrevrange(curr, 0, 5, withscores=True)
                     #for element in result:
                     #    val = ast.literal_eval(element[0])
