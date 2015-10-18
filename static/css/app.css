@@ -13,6 +13,8 @@ body {
 }
 
 #main {
+  padding-top: 8%;
+  padding-left: 11.35%;
   width: 100%;
   height: 100%;
   background: rgba(240, 240, 240, 0.6);
@@ -32,6 +34,7 @@ body {
   border: 1px solid gray;
   position: absolute;
   background: lightgray;
+  box-shadow: 1px 1px 1px gray;
 }
 
 .popup ul {
@@ -50,13 +53,22 @@ body {
 
 }
 
+.subject .ProseMirror {
+  height: 38px;
+}
+
 .subject .ProseMirror-content {
-  height: 20px;
+  height: 30px;
+}
+
+.body .ProseMirror {
+  height: 20em;
+  width: 60%;
+  margin-left: 8%;
 }
 
 .body .ProseMirror-content {
   height: 20em;
-  width: 60%;
 }
 
 div #inputarea {
@@ -65,10 +77,6 @@ div #inputarea {
 
 span {
   padding-right: 10px;
-}
-
-div .body {
-  margin-left: 15%;
 }
 
 div .ProseMirror {

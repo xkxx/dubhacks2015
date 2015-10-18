@@ -3,7 +3,24 @@
 
 var PM = require("prosemirror/dist/edit");
 var ProseMirror = PM.ProseMirror;
+var Keymap = PM.Keymap;
+var defaultKeymap = PM.defaultKeymap;
 var Pos = require("prosemirror/dist/model").Pos;
+
+var specialTokens = new Map([["/NE/", "Insert Name"], ["/blank/", "..."], ["/time/", new Date().toDateString()], ["/name/", "Person Name"]]);
+
+var overrideKeymap = function overrideKeymap(handler) {
+  return new Keymap({
+    "Tab": function Tab() {
+      handler(true);
+    },
+    "Shift-Tab": function ShiftTab() {
+      handler(false);
+    }
+  }, {
+    fallthrough: defaultKeymap
+  });
+};
 
 var getLastSent = function getLastSent(str) {
   // TODO: deal with vs.
@@ -11,7 +28,7 @@ var getLastSent = function getLastSent(str) {
   return str.slice(stop + 1);
 };
 
-// props: onChange(curSent, pos)
+// props: onChange(curSent, pos), onChoose()
 var ProseMirrorView = React.createClass({
   displayName: "ProseMirrorView",
 
@@ -51,7 +68,19 @@ var ProseMirrorView = React.createClass({
           if (lastSent.slice(-1) !== " ") {
             content = " " + content;
           }
-          mirror.apply(mirror.tr.insertText(mirror.selection.head, content));
+          var highlight = null;
+          specialTokens.forEach(function (placeholder, token) {
+            var index = content.indexOf(token);
+            if (index !== -1) {
+              content = content.replace(token, placeholder);
+              highlight = [index, index + placeholder.length];
+            }
+          });
+          mirror.apply(mirror.tr.insertText(cursor, content));
+          if (highlight) {
+            mirror.setSelection(new Pos(cursor.path, cursor.offset + highlight[0]), new Pos(cursor.path, cursor.offset + highlight[1]));
+          }
+          mirror.focus();
         };
         cb(lastSent, pos, insertBack);
       });
@@ -94,8 +123,8 @@ var AutoCompletePopup = React.createClass({
       "div",
       { className: "popup", style: {
           visibility: show ? "visible" : "hidden",
-          left: pos.left + 5,
-          top: pos.top + 5
+          left: pos.left + 10,
+          top: pos.top + 15
         } },
       React.createElement(
         "ul",
@@ -133,7 +162,7 @@ var MainView = React.createClass({
           null,
           "Subject: "
         ),
-        React.createElement(ProseMirrorView, { className: "subject" }),
+        React.createElement(ProseMirrorView, { onChange: self.onChange, className: "subject" }),
         React.createElement(
           "p",
           null,
@@ -158,6 +187,9 @@ var MainView = React.createClass({
     fetch("/api/autocomplete?hint=" + encodeURIComponent(text)).then(function (res) {
       return res.json();
     }).then(function (json) {
+      if (json.length === 0) {
+        return;
+      }
       self.setState({
         show: true,
         pos: pos,
