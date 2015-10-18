@@ -18,14 +18,10 @@ def getData(input):
         listlen -= 1
         curr = wordList[listlen] + " " + curr
     sorted(allword, key=operator.itemgetter(1))
-    strSorted = []
-    for word in allword:
-        value, freq = ast.literal_eval(word[0]), word[1]
-        strValue = value[0]
-        for element in value[1:]:
-            strValue += " " + element
-        strSorted.append((strValue, freq))
-    return strSorted
+    #strSorted = []
+    return [' '.join(list(ast.literal_eval(word[0]))) for word in allword ]
+        #strSorted.append((value, freq))
+    #return strSorted
 
 result = getData('to')
 print result
