@@ -23,7 +23,8 @@ def getData(input):
         value, freq = ast.literal_eval(word[0]), word[1]
         strValue = ""
         for element in value:
-            strValue += element
+            strValue += element + " "
+        strValue.strip()
         strSorted.append((strValue, freq))
     return strSorted
 
