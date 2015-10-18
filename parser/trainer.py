@@ -3,14 +3,17 @@ import nltk
 from os import listdir
 import re
 import redis
+import ast
 
 N = 5  # ngram from 2 to (N - 1)
 DATA_DIR = 'testdataset/'
 REGEX = "^[(0-9)\W]+|com|http$"
+FREQUENCY_THRESHOLD = 2
 
 NGram = list()
 
-rd = redis.StrictRedis()
+redis_ngram = redis.StrictRedis(host='localhost', port=6379, db=0)
+redis_ho = redis.StrictRedis(host='localhost', port=6379, db=1)
 
 def everygrams(tokens):
     retlist = list()
@@ -41,5 +44,26 @@ def getNGram():
 
 def serializeNGram():
     for gram in NGram:
-        rd.incr(gram)
-    
+        redis_ngram.incr(gram)
+
+def incrHintOptions(oldcursor):
+    cursor, gramPage = redis_ngram.scan(oldcursor)
+    for gram in gramPage:
+        freq = redis_ngram.get(gram)
+        if freq >= FREQUENCY_THRESHOLD:
+            # save hint -> option pair to redis
+            wordList = ast.literal_eval(gram)
+            hint = wordList[0]
+            options = wordList[1:]
+            redis_ho.zincrby(hint, options, 1)
+    return cursor
+
+# scanForCommonGramsAndBuildHintOptionsStructure
+def trainModel():
+    cursor = incrHintOptions(0)
+    while cursor != 0:
+        incrHintOptions(cursor)
+
+buildNGram()
+serializeNGram()
+trainModel()
