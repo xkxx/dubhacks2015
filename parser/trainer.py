@@ -61,7 +61,7 @@ def incrHintOptions(oldcursor):
 # scanForCommonGramsAndBuildHintOptionsStructure
 def trainModel():
     cursor = incrHintOptions(0)
-    while cursor != 0:
+    while cursor != "0":
         incrHintOptions(cursor)
 
 def userCustomize(hint, options):
