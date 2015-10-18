@@ -1,5 +1,6 @@
 import redis
 import operator
+import ast
 r = redis.StrictRedis(db=1)
 
 def getData(input):
@@ -17,7 +18,15 @@ def getData(input):
         listlen -= 1
         curr = wordList[listlen] + " " + curr
     sorted(allword, key=operator.itemgetter(1))
-    return allword
+    strSorted = []
+    for word in allword:
+        value, freq = ast.literal_eval(word[0]), word[1]
+        strValue = ""
+        for element in value:
+            strValue += element + " "
+        strValue.strip()
+        strSorted.append((strValue, freq))
+    return strSorted
 
 result = getData('to')
 print result
