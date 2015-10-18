@@ -8,7 +8,7 @@ r = redis.StrictRedis(db=3)
 
 def getData(input):
     if input[len(input) - 4:] == '\n\n':
-        return getPossibleList('\n\n')
+        return getPossibleList('\n\n', 5)
     else:
         allword = []
         wordList = input.split()
@@ -19,8 +19,8 @@ def getData(input):
                 if index > 0:
                     userCustomize.userCustomize(wordList[index - 1], curr)
                 if r.exists(curr) >= 1:
-                    allword.extend(getPossibleList(curr))
-                    allword.extend(getPossibleList(curr.lower()))
+                    allword.extend(getPossibleList(curr), index)
+                    allword.extend(getPossibleList(curr.lower()), index)
                     #result = r.zrevrange(curr, 0, 5, withscores=True)
                     #for element in result:
                     #    val = ast.literal_eval(element[0])
@@ -38,11 +38,11 @@ def getData(input):
                 allword = sorted(allword, key=operator.itemgetter(1), reverse=True)
             return [' '.join(list(word[0])) for word in allword[0:5]]
 
-def getPossibleList(curr):
+def getPossibleList(curr, index):
     words = []
     result = r.zrevrange(curr, 0, 5, withscores=True)
     for element in result:
         val = ast.literal_eval(element[0])
-        words.append((val, element[1] + LENGTH_WEIGHT
-            * (len(val) + (len(wordList) - index))))
+        words.append(val, element[1] + LENGTH_WEIGHT
+            * (len(val) + (len(words) - index)))
     return words
