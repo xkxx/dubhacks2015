@@ -1,6 +1,21 @@
 var PM = require("prosemirror/dist/edit");
 var ProseMirror = PM.ProseMirror;
+var Keymap = PM.Keymap;
+var defaultKeymap = PM.defaultKeymap;
 var Pos = require("prosemirror/dist/model").Pos;
+
+var overrideKeymap = function(handler) {
+  return new Keymap({
+    "Tab": function() {
+      handler(true);
+    },
+    "Shift-Tab": function() {
+      handler(false);
+    }
+  }, {
+    fallthrough: defaultKeymap
+  });
+};
 
 var getLastSent = function(str) {
   // TODO: deal with vs.
@@ -8,7 +23,7 @@ var getLastSent = function(str) {
   return str.slice(stop + 1);
 };
 
-// props: onChange(curSent, pos)
+// props: onChange(curSent, pos), on
 var ProseMirrorView = React.createClass({
   render: function() {
     var className = this.props.className;
@@ -23,9 +38,7 @@ var ProseMirrorView = React.createClass({
     });
     var doc = mirror.doc;
     var cb = this.props.onChange;
-    var insertBack = function(text) {
-      mirror.apply(mirror.tr.insertText(mirror.selection.head, text));
-    };
+
     if (cb) {
       var self = this;
       mirror.on('textInput', function(input) {
@@ -40,9 +53,18 @@ var ProseMirrorView = React.createClass({
         var cursor_ = new Pos(cursor.path, cursor.offset - 1);
         var pos = mirror.coordsAtPos(cursor_);
         mirror.setSelection(front, cursor);
-        var text = mirror.selectedText;  // get text
+        var selected = mirror.selectedDoc;
+        var text = selected.type.serializeText(selected).slice(0,-2);
+        console.info(text + "===")
         var lastSent = getLastSent(text);
         mirror.setSelection(range);  // restore selection
+        var insertBack = function(content) {
+          console.info("===" + lastSent.slice(-1) + "===");
+          if (lastSent.slice(-1) !== " ") {
+            content = " " + content;
+          }
+          mirror.apply(mirror.tr.insertText(mirror.selection.head, content));
+      };
         cb(lastSent, pos, insertBack);
       });
     }
