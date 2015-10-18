@@ -21,10 +21,9 @@ def getData(input):
     strSorted = []
     for word in allword:
         value, freq = ast.literal_eval(word[0]), word[1]
-        strValue = ""
-        for element in value:
-            strValue += element + " "
-        strValue.strip()
+        strValue = value[0]
+        for element in value[1:]:
+            strValue += " " + element
         strSorted.append((strValue, freq))
     return strSorted
 
