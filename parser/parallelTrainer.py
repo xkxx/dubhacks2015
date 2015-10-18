@@ -14,9 +14,8 @@ THREAD_NUM = 8
 
 NGram = list()
 
-pool = redis.ConnectionPool(host='localhost', port=6379, db=2)
-
-redis_ho = redis.StrictRedis(host='localhost', port=6379, db=3)
+pool_ngram = redis.ConnectionPool(host='localhost', port=6379, db=2)
+pool_ho = redis.ConnectionPool(host='localhost', port=6379, db=2)
 
 def everygrams(tokens):
     retlist = list()
@@ -26,13 +25,16 @@ def everygrams(tokens):
     return retlist
 
 def ngramWorker(i, sentences):
+    redis_ngram = redis.Redis(connection_pool=pool_ngram)
     workset = sentences[i * (len(sentences) / THREAD_NUM):
         (i + 1) * (len(sentences) / THREAD_NUM)]
     for sentence in workset:
         tokens = nltk.word_tokenize(sentence)
         pattern = re.compile(REGEX)
         validWords = [token for token in tokens if not pattern.match(token)]
-        NGram.extend(everygrams(validWords))
+        everygram = everygrams(validWords)
+        for gram in everygram:
+            redis_ngram.incr(gram)
 
 def buildNGram():
     files = [open(DATA_DIR + filename).read()
@@ -54,23 +56,12 @@ def buildNGram():
 def getNGram():
     return NGram
 
-def countingWorker(i):
-    redis_ngram = redis.Redis(connection_pool=pool)
-    size = len(NGram)
-    for gram in NGram[i * (size / THREAD_NUM): (i + 1) * (size / THREAD_NUM)]:
-        redis_ngram.incr(NGram)
-
-def serializeNGram():
-    threads = []
-    for i in range(THREAD_NUM):
-        t = threading.Thread(target=countingWorker, args=(i,))
-        threads.append(t)
-        t.start()
-
-def incrHintOptions(oldcursor):
-    redis_ngram = redis.Redis(connection_pool=pool)
-    cursor, gramPage = redis_ngram.scan(oldcursor)
-    for gram in gramPage:
+# scanForCommonGramsAndBuildHintOptionsStructure
+def incrHintOptionWorker(i, grams):
+    redis_ho = redis.Redis(connection_pool=pool_ho)
+    redis_ngram = redis.Redis(connection_pool=pool_ngram)
+    size = len(grams)
+    for gram in grams[i * (size / THREAD_NUM): (i + 1) * (size / THREAD_NUM)]:
         freq = redis_ngram.get(gram)
         if freq >= FREQUENCY_THRESHOLD:
             # save hint -> option pair to redis
@@ -78,17 +69,18 @@ def incrHintOptions(oldcursor):
             hint = wordList[0]
             options = wordList[1:]
             redis_ho.zincrby(hint, options, 1)
-    return cursor
 
-# scanForCommonGramsAndBuildHintOptionsStructure
 def trainModel():
-    cursor = incrHintOptions(0)
-    while cursor != "0":
-        incrHintOptions(cursor)
+    redis_ngram = redis.Redis(connection_pool=pool_ngram)
+    grams = [gram for gram in redis_ngram.scan_iter()]
+    threads = []
+    for i in range(THREAD_NUM):
+        t = threading.Thread(target=incrHintOptionWorker, args=(i, grams))
+        threads.append(t)
 
 def userCustomize(hint, options):
-    redis_ho.zincrby(hint, options, 1)
+    redis_ho = redis.Redis(connection_pool=pool_ho)
+    redis_ho.zincrby(hint, options, 3)
 
 buildNGram()
-serializeNGram()
 trainModel()
