@@ -20,11 +20,22 @@ body {
 }
 
 .popup {
-  border: 1px solid black;
-  height: 20em;
+  border: 1px solid gray;
   position: absolute;
+  background: lightgray;
+}
+
+.popup ul {
+  margin: 0;
+  padding: 0;
 }
 
 .popup li {
-  
+  list-style-type:none;
+  border: 1px solid black;
+  padding: 2px;
+}
+
+.popup li.selected {
+
 }
