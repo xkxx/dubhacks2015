@@ -26,9 +26,7 @@ var ProseMirrorView = React.createClass({
     });
     var doc = mirror.doc;
     var cb = this.props.onChange;
-    var insertBack = function insertBack(text) {
-      mirror.apply(mirror.tr.insertText(mirror.selection.head, text));
-    };
+
     if (cb) {
       var self = this;
       mirror.on('textInput', function (input) {
@@ -43,9 +41,18 @@ var ProseMirrorView = React.createClass({
         var cursor_ = new Pos(cursor.path, cursor.offset - 1);
         var pos = mirror.coordsAtPos(cursor_);
         mirror.setSelection(front, cursor);
-        var text = mirror.selectedText; // get text
+        var selected = mirror.selectedDoc;
+        var text = selected.type.serializeText(selected).slice(0, -2);
+        console.info(text + "===");
         var lastSent = getLastSent(text);
         mirror.setSelection(range); // restore selection
+        var insertBack = function insertBack(content) {
+          console.info("===" + lastSent.slice(-1) + "===");
+          if (lastSent.slice(-1) !== " ") {
+            content = " " + content;
+          }
+          mirror.apply(mirror.tr.insertText(mirror.selection.head, content));
+        };
         cb(lastSent, pos, insertBack);
       });
     }
@@ -140,7 +147,7 @@ var MainView = React.createClass({
   },
   onSelect: function onSelect(item) {
     console.info("onSelect", item);
-    this.state.insertToCurEditor(item);
+    this.state.insertToCurEditor(item); // FIXME
     var newState = this.getInitialState();
     newState.show = false;
     this.setState(newState);
