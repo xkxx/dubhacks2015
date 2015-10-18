@@ -26,6 +26,9 @@ var ProseMirrorView = React.createClass({
     });
     var doc = mirror.doc;
     var cb = this.props.onChange;
+    var insertBack = function insertBack(text) {
+      mirror.apply(mirror.tr.insertText(mirror.selection.head, text));
+    };
     if (cb) {
       var self = this;
       mirror.on('textInput', function (input) {
@@ -43,7 +46,7 @@ var ProseMirrorView = React.createClass({
         var text = mirror.selectedText; // get text
         var lastSent = getLastSent(text);
         mirror.setSelection(range); // restore selection
-        cb(lastSent, pos);
+        cb(lastSent, pos, insertBack);
       });
     }
     this.mirror = mirror;
@@ -53,21 +56,45 @@ var ProseMirrorView = React.createClass({
   }
 });
 
-// props: show, items, pos
+// props: show, items, pos, onSelect
 var AutoCompletePopup = React.createClass({
   displayName: "AutoCompletePopup",
 
+  getInitialState: function getInitialState() {
+    return {
+      selectedIndex: 0
+    };
+  },
   render: function render() {
     var show = this.props.show;
     var pos = this.props.pos;
+    var onSelect = this.props.onSelect;
+    var selected = this.state.selectedIndex;
+
+    var itemsList = this.props.items.map(function (item, index) {
+      var onClick = function onClick() {
+        onSelect(item);
+      };
+      var classes = index === selected ? 'selected' : '';
+      return React.createElement(
+        "li",
+        { key: item, className: classes, onClick: onClick },
+        item
+      );
+    });
+
     return React.createElement(
       "div",
       { className: "popup", style: {
           visibility: show ? "visible" : "hidden",
-          left: pos.left,
-          top: pos.top
+          left: pos.left + 5,
+          top: pos.top + 5
         } },
-      "OOOOOOOOOOOO"
+      React.createElement(
+        "ul",
+        null,
+        itemsList
+      )
     );
   }
 });
@@ -81,7 +108,8 @@ var MainView = React.createClass({
       pos: {
         left: 0, top: 0
       },
-      items: []
+      items: [],
+      insertToCurEditor: function insertToCurEditor(x) {}
     };
   },
   render: function render() {
@@ -106,15 +134,31 @@ var MainView = React.createClass({
         ),
         React.createElement(ProseMirrorView, { onChange: self.onChange, className: "body" })
       ),
-      React.createElement(AutoCompletePopup, { show: state.show, pos: state.pos, items: state.items })
+      React.createElement(AutoCompletePopup, { show: state.show, pos: state.pos, items: state.items,
+        onSelect: self.onSelect })
     );
   },
-  onChange: function onChange(text, pos) {
+  onSelect: function onSelect(item) {
+    console.info("onSelect", item);
+    this.state.insertToCurEditor(item);
+    var newState = this.getInitialState();
+    newState.show = false;
+    this.setState(newState);
+  },
+  onChange: function onChange(text, pos, insertBack) {
+    var self = this;
     console.info("onChange", text, pos);
-    this.setState({
-      show: true,
-      pos: pos,
-      items: []
+    fetch("/api/autocomplete?hint=" + encodeURIComponent(text)).then(function (res) {
+      return res.json();
+    }).then(function (json) {
+      self.setState({
+        show: true,
+        pos: pos,
+        items: json,
+        insertToCurEditor: insertBack
+      });
+    })["catch"](function (err) {
+      console.error("FETCH", err);
     });
   }
 });
