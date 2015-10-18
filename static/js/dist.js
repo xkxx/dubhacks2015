@@ -114,7 +114,8 @@ var AutoCompletePopup = React.createClass({
       var classes = index === selected ? 'selected' : '';
       return React.createElement(
         "li",
-        { key: item, className: classes, onClick: onClick },
+        { key: item + pos.toString(),
+          className: classes, onClick: onClick },
         item
       );
     });

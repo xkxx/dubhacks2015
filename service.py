@@ -4,7 +4,7 @@ import ast
 import userCustomize
 
 LENGTH_WEIGHT = 1.5
-r = redis.StrictRedis(db=1)
+r = redis.StrictRedis(db=3)
 
 def getData(input):
     if input[len(input) - 4:] == '\n\n':
@@ -43,6 +43,6 @@ def getPossibleList(curr):
     result = r.zrevrange(curr, 0, 5, withscores=True)
     for element in result:
         val = ast.literal_eval(element[0])
-        words.append(val, element[1] + LENGTH_WEIGHT
-            * (len(val) + (len(wordList) - index)))
+        words.append((val, element[1] + LENGTH_WEIGHT
+            * (len(val) + (len(wordList) - index))))
     return words

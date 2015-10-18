@@ -7,6 +7,7 @@ var Pos = require("prosemirror/dist/model").Pos;
 var specialTokens = new Map([
   ["/NE/", "Insert Name"],
   ["/blank/", "..."],
+  ["...", "..."],
   ["/time/", (new Date()).toDateString()],
   ["/name/", "Person Name"]
 ]);
@@ -113,7 +114,8 @@ var AutoCompletePopup = React.createClass({
         onSelect(item);
       };
       var classes = (index === selected) ? 'selected' : '';
-      return (<li key={item} className={classes} onClick={onClick}>{item}</li>);
+      return (<li key={item + pos.toString()}
+        className={classes} onClick={onClick}>{item}</li>);
     });
 
     return (
