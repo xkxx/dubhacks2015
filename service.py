@@ -43,6 +43,6 @@ def getPossibleList(curr, index):
     result = r.zrevrange(curr, 0, 5, withscores=True)
     for element in result:
         val = ast.literal_eval(element[0])
-        words.append(val, element[1] + LENGTH_WEIGHT
-            * (len(val) + (len(words) - index)))
+        words.append((val, element[1] + LENGTH_WEIGHT
+            * (len(val) + (len(words) - index))))
     return words

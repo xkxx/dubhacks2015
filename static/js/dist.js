@@ -7,7 +7,7 @@ var Keymap = PM.Keymap;
 var defaultKeymap = PM.defaultKeymap;
 var Pos = require("prosemirror/dist/model").Pos;
 
-var specialTokens = new Map([["/NE/", "Insert Name"], ["/blank/", "..."], ["/time/", new Date().toDateString()], ["/name/", "Person Name"]]);
+var specialTokens = new Map([["/NE/", "Insert Name"], ["/blank/", "..."], [". . .", "..."], ["/time/", new Date().toDateString()], ["/name/", "Person Name"]]);
 
 var overrideKeymap = function overrideKeymap(handler) {
   return new Keymap({

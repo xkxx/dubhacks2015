@@ -7,7 +7,7 @@ var Pos = require("prosemirror/dist/model").Pos;
 var specialTokens = new Map([
   ["/NE/", "Insert Name"],
   ["/blank/", "..."],
-  ["...", "..."],
+  [". . .", "..."],
   ["/time/", (new Date()).toDateString()],
   ["/name/", "Person Name"]
 ]);
