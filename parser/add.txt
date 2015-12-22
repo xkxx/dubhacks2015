@@ -1,0 +1,4 @@
+zadd "Dear" 30.0 "('...,')" 20.0 "('Professor')" 10.0 "('Miss')"
+zadd "Hello" 30 "('...,')"
+zadd "Thank you" 3.0 "('in advance')" 20.0 "('for your help')" 10.0 "('very much')"
+zadd "take" 30.0 "('care')" 20.0 "('... into account')"

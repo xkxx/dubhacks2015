@@ -7,7 +7,7 @@ import redis
 import ast
 import threading
 
-N = 6  # ngram from 2 to (N - 1)
+N = 5  # ngram from 2 to (N - 1)
 DATA_DIR = 'dataset/'
 REGEX = "^[(0-9)\W]+|com|http|([^\x00-\x7F]+)$"
 FREQUENCY_THRESHOLD = 2

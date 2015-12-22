@@ -1,0 +1,68 @@
+Choosing database
+
+MySQL
+MongoDB		not relational, shared r/w
+Redis		all in memory, fast, heavy r/w load
+Cassandra	distributed
+
+
+How to choose:
+	data size
+	working set
+	write and read load
+	the way to handle inconsistencies
+		need atomic transactions or not
+		delay
+		work with other data sources
+
+Data size
+	mysql
+		matual sharding
+	mongoDb
+		build in sharding
+
+working set size
+	mongo
+		working set should fit in RAM
+	redis
+		cannot exceed the amount of RAM on the machine
+	mysql, mongoDb
+		less important
+
+read/write load
+	redis
+		great for heavy loads
+	mongo
+		moderate loads
+	mysql
+		moderate
+	cassandra
+		heavy read only
+
+inconsistence
+	support atomic transaction: cassandra, mysql, redis
+	eventual consistency: all
+	dependent on another data source (should avoid)
+
+Good at:
+	mysql, mongo
+		scan
+		filter
+		join
+		index
+		==> general data
+		e.g. user accounts, places
+
+	cassandra
+		querying a single reference or a row of data
+		limited ablity to filter
+		==> data grows exponentially, reads are minimal and queries are simple
+		e.g. user interaction data
+
+	redis
+		key-value store
+		don't scan
+		==> updated very often, read very often
+		e.g. friends feeds, Oauth tokens
+		e.g. eference in redis + data in mysql
+
